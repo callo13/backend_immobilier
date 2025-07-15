@@ -34,13 +34,18 @@ app.get('/auth/google', (req, res) => {
     scope: scopes,
     prompt: 'consent',
   });
+  console.log('[AUTH] /auth/google appelé, redirection vers Google OAuth2');
   res.redirect(url);
+  console.log('[AUTH] Réponse : 302 Redirect');
 });
 
 // 2. Callback Google OAuth2
 app.get('/auth/google/callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.status(400).send('Code manquant');
+  if (!code) {
+    console.log('[CALLBACK] Code manquant, réponse : 400 Bad Request');
+    return res.status(400).send('Code manquant');
+  }
   try {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Tokens = tokens;
@@ -65,7 +70,9 @@ app.get('/auth/google/callback', async (req, res) => {
 
     // Rediriger vers le frontend
     res.redirect('http://localhost:5173/oauth-success');
+    console.log('[CALLBACK] Authentification réussie, cookie envoyé, redirection vers le front. Réponse : 302 Redirect');
   } catch (err) {
+    console.log('[CALLBACK] Erreur lors de la récupération du token, réponse : 500 Internal Server Error');
     res.status(500).send('Erreur lors de la récupération du token');
   }
 });
@@ -73,6 +80,7 @@ app.get('/auth/google/callback', async (req, res) => {
 // 3. Récupération des événements du calendrier
 app.get('/api/events', async (req, res) => {
   if (!oauth2Tokens) {
+    console.log('[EVENTS] Non authentifié, réponse : 401 Unauthorized');
     return res.status(401).json({ error: 'Non authentifié' });
   }
   oauth2Client.setCredentials(oauth2Tokens);
@@ -94,8 +102,10 @@ app.get('/api/events', async (req, res) => {
       singleEvents: true,
       orderBy: 'startTime',
     });
+    console.log('[EVENTS] Événements récupérés, réponse : 200 OK');
     res.json(events.data.items);
   } catch (err) {
+    console.log('[EVENTS] Erreur lors de la récupération des événements, réponse : 500 Internal Server Error');
     res.status(500).json({ error: 'Erreur lors de la récupération des événements' });
   }
 });
@@ -104,6 +114,7 @@ app.get('/api/events', async (req, res) => {
 app.post('/api/google/logout', (req, res) => {
   res.clearCookie('token');
   oauth2Tokens = null; // Optionnel : réinitialiser le token en mémoire
+  console.log('[LOGOUT] Déconnexion, cookie supprimé, réponse : 200 OK');
   res.json({ success: true, message: 'Déconnecté' });
 });
 
@@ -112,17 +123,17 @@ app.get('/api/google/status', (req, res) => {
   const token = req.cookies.token;
   console.log('[STATUS] Cookie reçu :', token);
   if (!token) {
-    console.log('[STATUS] Pas de token, utilisateur non connecté');
+    console.log('[STATUS] Pas de token, utilisateur non connecté, réponse : 200 OK');
     return res.json({ connected: false });
   }
   try {
     const decoded = jwt.verify(token, process.env.SESSION_SECRET);
     console.log('[STATUS] JWT décodé :', decoded);
     const response = { connected: true, user: { userId: decoded.userId, email: decoded.email } };
-    console.log('[STATUS] Réponse envoyée :', response);
+    console.log('[STATUS] Réponse envoyée :', response, '200 OK');
     res.json(response);
   } catch (err) {
-    console.log('[STATUS] Erreur de décodage JWT :', err.message);
+    console.log('[STATUS] Erreur de décodage JWT :', err.message, 'Réponse : 200 OK');
     res.json({ connected: false });
   }
 });
