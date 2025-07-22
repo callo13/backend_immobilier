@@ -4,6 +4,7 @@ const cors = require('cors');
 const { google } = require('googleapis');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
+const { findUserByGoogleId, createUser, updateUserTokens } = require('./airtable');
 
 const app = express();
 app.use(cookieParser());
@@ -48,14 +49,41 @@ app.get('/auth/google/callback', async (req, res) => {
   }
   try {
     const { tokens } = await oauth2Client.getToken(code);
-    oauth2Tokens = tokens;
     oauth2Client.setCredentials(tokens);
+    oauth2Tokens = tokens;
 
-    // Récupérer les infos utilisateur (id, email)
+    // Récupérer les infos utilisateur (id, email, name)
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const userinfo = await oauth2.userinfo.get();
     const userId = userinfo.data.id;
     const email = userinfo.data.email;
+    const name = userinfo.data.name;
+
+    // Stocker ou mettre à jour l'utilisateur dans Airtable
+    const expiry_date_iso = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString().split('.')[0] + 'Z' : null;
+    const created_at_iso = new Date().toISOString().split('.')[0] + 'Z';
+    let user = await findUserByGoogleId(userId);
+    if (user) {
+      await updateUserTokens(user.id, {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        scope: tokens.scope,
+        expiry_date: expiry_date_iso
+      });
+      console.log(`[CALLBACK] Utilisateur ${email} mis à jour dans Airtable.`);
+    } else {
+      user = await createUser({
+        google_id: userId,
+        email,
+        name,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        scope: tokens.scope,
+        expiry_date: expiry_date_iso,
+        created_at: created_at_iso
+      });
+      console.log(`[CALLBACK] Nouvel utilisateur ${email} créé dans Airtable.`);
+    }
 
     // Générer un JWT
     const token = jwt.sign({ userId, email }, process.env.SESSION_SECRET, { expiresIn: '7d' });
@@ -72,7 +100,7 @@ app.get('/auth/google/callback', async (req, res) => {
     res.redirect('http://localhost:5173/oauth-success');
     console.log('[CALLBACK] Authentification réussie, cookie envoyé, redirection vers le front. Réponse : 302 Redirect');
   } catch (err) {
-    console.log('[CALLBACK] Erreur lors de la récupération du token, réponse : 500 Internal Server Error');
+    console.log('[CALLBACK] Erreur lors de la récupération du token, réponse : 500 Internal Server Error', err);
     res.status(500).send('Erreur lors de la récupération du token');
   }
 });
