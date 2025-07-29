@@ -107,12 +107,48 @@ app.get('/auth/google/callback', async (req, res) => {
 
 // 3. Récupération des événements du calendrier
 app.get('/api/events', async (req, res) => {
-  if (!oauth2Tokens) {
-    console.log('[EVENTS] Non authentifié, réponse : 401 Unauthorized');
+  // 1. Lire et vérifier le JWT
+  const token = req.cookies.token;
+  if (!token) {
+    console.log('[EVENTS] Pas de token, réponse : 401 Unauthorized');
     return res.status(401).json({ error: 'Non authentifié' });
   }
-  oauth2Client.setCredentials(oauth2Tokens);
-  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.SESSION_SECRET);
+  } catch (err) {
+    console.log('[EVENTS] Token invalide, réponse : 401 Unauthorized');
+    return res.status(401).json({ error: 'Token invalide' });
+  }
+
+  // 2. Chercher l’utilisateur en base
+  let user;
+  try {
+    user = await findUserByGoogleId(decoded.userId);
+  } catch (err) {
+    console.log('[EVENTS] Erreur lors de la recherche utilisateur Airtable :', err);
+    return res.status(500).json({ error: 'Erreur serveur' });
+  }
+  if (!user) {
+    console.log('[EVENTS] Utilisateur non trouvé, réponse : 404 Not Found');
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+
+  // 3. Utiliser les tokens pour Google
+  const userFields = user.fields;
+  const oauth2ClientUser = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+  oauth2ClientUser.setCredentials({
+    access_token: userFields.access_token,
+    refresh_token: userFields.refresh_token,
+    scope: userFields.scope,
+    expiry_date: userFields.expiry_date ? new Date(userFields.expiry_date).getTime() : undefined
+  });
+
+  const calendar = google.calendar({ version: 'v3', auth: oauth2ClientUser });
 
   // Récupérer les dates de la requête ou utiliser des valeurs par défaut
   const { start, end } = req.query;
@@ -130,10 +166,10 @@ app.get('/api/events', async (req, res) => {
       singleEvents: true,
       orderBy: 'startTime',
     });
-    console.log('[EVENTS] Événements récupérés, réponse : 200 OK');
+    console.log('[EVENTS] Événements récupérés pour', userFields.email, ', réponse : 200 OK');
     res.json(events.data.items);
   } catch (err) {
-    console.log('[EVENTS] Erreur lors de la récupération des événements, réponse : 500 Internal Server Error');
+    console.log('[EVENTS] Erreur lors de la récupération des événements Google, réponse : 500 Internal Server Error', err);
     res.status(500).json({ error: 'Erreur lors de la récupération des événements' });
   }
 });
