@@ -3,7 +3,14 @@ require('dotenv').config();
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
 
-const USERS_TABLE = 'Users'; // Change si ta table a un autre nom
+const USERS_TABLE = 'Users';
+
+const base2 = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY_BIEN }).base(process.env.AIRTABLE_BASE_ID_BIEN);
+
+const AVAILABLE_BIENS_TABLE = 'Biens disponibles'; // Change si ta table a un autre nom
+
+// Fonction pour vérifier la connexion à la base de données Airtable
+
 
 // Trouver un utilisateur par google_id
 async function findUserByGoogleId(googleId) {
@@ -43,8 +50,28 @@ async function updateUserTokens(recordId, { access_token, refresh_token, scope, 
   });
 }
 
+// Récupérer tous les biens disponibles
+async function getAllAvailableBiens() {
+  try {
+    const records = await base2(AVAILABLE_BIENS_TABLE).select({
+      // Récupérer tous les enregistrements
+      maxRecords: 100 // Limite par défaut, peut être ajustée
+      // Suppression du tri car le champ 'Created' n'existe pas
+    }).all();
+    
+    return records.map(record => ({
+      id: record.id,
+      ...record.fields
+    }));
+  } catch (error) {
+    console.error('Erreur lors de la récupération des biens:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   findUserByGoogleId,
   createUser,
-  updateUserTokens
+  updateUserTokens,
+  getAllAvailableBiens
 }; 

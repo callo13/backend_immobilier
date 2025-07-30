@@ -4,7 +4,7 @@ const cors = require('cors');
 const { google } = require('googleapis');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
-const { findUserByGoogleId, createUser, updateUserTokens } = require('./airtable');
+const { findUserByGoogleId, createUser, updateUserTokens, getAllAvailableBiens } = require('./airtable');
 
 const app = express();
 app.use(cookieParser());
@@ -171,6 +171,26 @@ app.get('/api/events', async (req, res) => {
   } catch (err) {
     console.log('[EVENTS] Erreur lors de la récupération des événements Google, réponse : 500 Internal Server Error', err);
     res.status(500).json({ error: 'Erreur lors de la récupération des événements' });
+  }
+});
+
+// Route pour récupérer tous les biens disponibles
+app.get('/api/biens', async (req, res) => {
+  try {
+    const biens = await getAllAvailableBiens();
+    console.log(`[BIENS] ${biens.length} biens récupérés, réponse : 200 OK`);
+    res.json({
+      success: true,
+      count: biens.length,
+      data: biens
+    });
+  } catch (error) {
+    console.log('[BIENS] Erreur lors de la récupération des biens:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des biens',
+      error: error.message
+    });
   }
 });
 
