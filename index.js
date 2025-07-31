@@ -9,9 +9,8 @@ import { findUserByGoogleId, createUser, updateUserTokens, getAllAvailableBiens,
 dotenv.config();
 
 const app = express();
-app.use(cookieParser());
 
-// Configuration CORS dynamique selon l'environnement
+// Configuration CORS dynamique selon l'environnement - DOIT ÊTRE EN PREMIER
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
     ? [process.env.FRONTEND_URL || 'https://immodashboard.netlify.app']
@@ -22,7 +21,26 @@ const corsOptions = {
   exposedHeaders: ['Set-Cookie']
 };
 
+console.log('[CORS CONFIG] Configuration CORS:', {
+  nodeEnv: process.env.NODE_ENV,
+  frontendUrl: process.env.FRONTEND_URL,
+  corsOrigin: corsOptions.origin,
+  credentials: corsOptions.credentials
+});
+
 app.use(cors(corsOptions));
+app.use(cookieParser());
+
+// Middleware de logging pour diagnostiquer les requêtes CORS
+app.use((req, res, next) => {
+  console.log('[REQUEST]', {
+    method: req.method,
+    url: req.url,
+    origin: req.headers.origin,
+    'user-agent': req.headers['user-agent']
+  });
+  next();
+});
 
 // Stockage temporaire du token (à remplacer par une base de données plus tard)
 let oauth2Tokens = null;
@@ -418,6 +436,15 @@ app.get('/api/cors-config', (req, res) => {
     corsOrigin: corsOptions.origin,
     requestOrigin: req.headers.origin,
     allowedOrigins: corsOptions.origin
+  });
+});
+
+// Route de test simple pour CORS
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'CORS fonctionne !',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin
   });
 });
 
