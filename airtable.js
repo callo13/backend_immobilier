@@ -1,5 +1,7 @@
-const Airtable = require('airtable');
-require('dotenv').config();
+import Airtable from 'airtable';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY_BIEN }).base(process.env.AIRTABLE_BASE_ID);
 
@@ -169,7 +171,7 @@ async function getBiensByContactClient(contactClient) {
   }
 }
 
-module.exports = {
+export {
   findUserByGoogleId,
   createUser,
   updateUserTokens,

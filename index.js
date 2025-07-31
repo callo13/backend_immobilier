@@ -1,10 +1,12 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { google } = require('googleapis');
-const cookieParser = require('cookie-parser');
-const jwt = require('jsonwebtoken');
-const { findUserByGoogleId, createUser, updateUserTokens, getAllAvailableBiens, getAllAvailableBiensWithContacts, getBiensByContactClient } = require('./airtable');
+import dotenv from 'dotenv';
+import express from 'express';
+import cors from 'cors';
+import { google } from 'googleapis';
+import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
+import { findUserByGoogleId, createUser, updateUserTokens, getAllAvailableBiens, getAllAvailableBiensWithContacts, getBiensByContactClient } from './airtable.js';
+
+dotenv.config();
 
 const app = express();
 app.use(cookieParser());
