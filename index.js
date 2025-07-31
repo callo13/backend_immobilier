@@ -10,10 +10,19 @@ dotenv.config();
 
 const app = express();
 app.use(cookieParser());
-app.use(cors({
-  origin: 'http://localhost:5173', // l'URL exacte de ton front
-  credentials: true
-}));
+
+// Configuration CORS dynamique selon l'environnement
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL || 'https://votre-frontend.onrender.com']
+    : 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie']
+};
+
+app.use(cors(corsOptions));
 
 // Stockage temporaire du token (à remplacer par une base de données plus tard)
 let oauth2Tokens = null;
@@ -24,6 +33,14 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI
 );
+
+// Log de la configuration OAuth2 pour debug
+console.log('[OAUTH CONFIG] Configuration OAuth2:', {
+  clientId: process.env.GOOGLE_CLIENT_ID ? 'Présent' : 'Manquant',
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Présent' : 'Manquant',
+  redirectUri: process.env.GOOGLE_REDIRECT_URI || 'Non défini',
+  nodeEnv: process.env.NODE_ENV || 'Non défini'
+});
 
 // 1. Route pour démarrer l'authentification Google
 app.get('/auth/google', (req, res) => {
@@ -109,13 +126,19 @@ app.get('/auth/google/callback', async (req, res) => {
     // Placer le JWT dans un cookie sécurisé
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+      secure: process.env.NODE_ENV === 'production', // Secure en production
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Important pour CORS en production
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+      domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Laissez le navigateur gérer le domaine
+      path: '/'
     });
 
-    // Rediriger vers le frontend
-    res.redirect('http://localhost:5173/oauth-success');
+    // Rediriger vers le frontend (URL dynamique selon l'environnement)
+    const frontendUrl = process.env.NODE_ENV === 'production' 
+      ? process.env.FRONTEND_URL || 'https://votre-frontend.onrender.com'
+      : 'http://localhost:5173';
+    
+    res.redirect(`${frontendUrl}/oauth-success`);
     console.log('[CALLBACK] Authentification réussie, cookie envoyé, redirection vers le front. Réponse : 302 Redirect');
   } catch (err) {
     console.log('[CALLBACK] Erreur détaillée lors de la récupération du token:', {
@@ -337,10 +360,17 @@ app.post('/api/google/force-reconnect', (req, res) => {
   });
 });
 
-// Route pour vérifier l’état de connexion
+// Route pour vérifier l'état de connexion
 app.get('/api/google/status', (req, res) => {
   const token = req.cookies.token;
   console.log('[STATUS] Cookie reçu :', token);
+  console.log('[STATUS] Tous les cookies reçus :', req.cookies);
+  console.log('[STATUS] Headers reçus :', {
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    'user-agent': req.headers['user-agent']
+  });
+  
   if (!token) {
     console.log('[STATUS] Pas de token, utilisateur non connecté, réponse : 200 OK');
     return res.json({ connected: false });
@@ -355,6 +385,29 @@ app.get('/api/google/status', (req, res) => {
     console.log('[STATUS] Erreur de décodage JWT :', err.message, 'Réponse : 200 OK');
     res.json({ connected: false });
   }
+});
+
+// Route pour tester la configuration des cookies
+app.get('/api/test-cookies', (req, res) => {
+  // Définir un cookie de test
+  res.cookie('test-cookie', 'test-value', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 60 * 1000, // 1 minute
+    path: '/'
+  });
+  
+  res.json({
+    success: true,
+    message: 'Cookie de test défini',
+    cookies: req.cookies,
+    headers: {
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    },
+    env: process.env.NODE_ENV
+  });
 });
 
 const PORT = process.env.PORT || 5000;
