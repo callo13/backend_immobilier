@@ -13,7 +13,7 @@ app.use(cookieParser());
 
 // Configuration CORS dynamique selon l'environnement
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'productionpopo' 
+  origin: process.env.NODE_ENV === 'productionpopo'
     ? [process.env.FRONTEND_URL || 'https://votre-frontend.onrender.com']
     : 'http://localhost:5173',
   credentials: true,
@@ -134,7 +134,7 @@ app.get('/auth/google/callback', async (req, res) => {
     });
 
     // Rediriger vers le frontend (URL dynamique selon l'environnement)
-    const frontendUrl = process.env.NODE_ENV === 'production' 
+    const frontendUrl = process.env.NODE_ENV === 'production_popo' 
       ? process.env.FRONTEND_URL || 'https://votre-frontend.onrender.com'
       : 'http://localhost:5173';
     
