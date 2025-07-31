@@ -4,7 +4,7 @@ const cors = require('cors');
 const { google } = require('googleapis');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
-const { findUserByGoogleId, createUser, updateUserTokens, getAllAvailableBiens } = require('./airtable');
+const { findUserByGoogleId, createUser, updateUserTokens, getAllAvailableBiens, getAllAvailableBiensWithContacts, getBiensByContactClient } = require('./airtable');
 
 const app = express();
 app.use(cookieParser());
@@ -189,6 +189,57 @@ app.get('/api/biens', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la récupération des biens',
+      error: error.message
+    });
+  }
+});
+
+// Route pour récupérer tous les biens avec les noms des contacts
+app.get('/api/biens/with-contacts', async (req, res) => {
+  try {
+    const biens = await getAllAvailableBiensWithContacts();
+    console.log(`[BIENS WITH CONTACTS] ${biens.length} biens récupérés avec contacts, réponse : 200 OK`);
+    res.json({
+      success: true,
+      count: biens.length,
+      data: biens
+    });
+  } catch (error) {
+    console.log('[BIENS WITH CONTACTS] Erreur lors de la récupération des biens avec contacts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des biens avec contacts',
+      error: error.message
+    });
+  }
+});
+
+// Route pour récupérer les biens par contact client
+app.get('/api/biens/contact/:contactClient', async (req, res) => {
+  try {
+    const { contactClient } = req.params;
+    
+    if (!contactClient) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le paramètre contactClient est requis'
+      });
+    }
+    
+    const biens = await getBiensByContactClient(contactClient);
+    console.log(`[BIENS CONTACT] ${biens.length} biens trouvés pour le contact: ${contactClient}, réponse : 200 OK`);
+    
+    res.json({
+      success: true,
+      contactClient: contactClient,
+      count: biens.length,
+      data: biens
+    });
+  } catch (error) {
+    console.log('[BIENS CONTACT] Erreur lors de la récupération des biens par contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des biens par contact',
       error: error.message
     });
   }
