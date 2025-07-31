@@ -12,12 +12,10 @@ const app = express();
 
 // Configuration CORS dynamique selon l'environnement - DOIT ÊTRE EN PREMIER
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL || 'https://immodashboard.netlify.app']
-    : 'http://localhost:5173',
+  origin: true, // Accepte toutes les origines
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Origin', 'Accept'],
   exposedHeaders: ['Set-Cookie']
 };
 
@@ -30,6 +28,23 @@ console.log('[CORS CONFIG] Configuration CORS:', {
 
 app.use(cors(corsOptions));
 app.use(cookieParser());
+
+// Middleware CORS manuel en plus pour s'assurer que les headers sont présents
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Origin, Accept');
+  res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+  
+  // Répondre immédiatement aux requêtes OPTIONS (preflight)
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  next();
+});
 
 // Middleware de logging pour diagnostiquer les requêtes CORS
 app.use((req, res, next) => {
