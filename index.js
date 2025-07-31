@@ -14,7 +14,7 @@ app.use(cookieParser());
 // Configuration CORS dynamique selon l'environnement
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL || 'https://votre-frontend.onrender.com']
+    ? [process.env.FRONTEND_URL || 'https://immodashboard.netlify.app']
     : 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -135,7 +135,7 @@ app.get('/auth/google/callback', async (req, res) => {
 
     // Rediriger vers le frontend (URL dynamique selon l'environnement)
     const frontendUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.FRONTEND_URL || 'https://votre-frontend.onrender.com'
+      ? process.env.FRONTEND_URL || 'https://immodashboard.netlify.app'
       : 'http://localhost:5173';
     
     res.redirect(`${frontendUrl}`);
@@ -407,6 +407,17 @@ app.get('/api/test-cookies', (req, res) => {
       referer: req.headers.referer
     },
     env: process.env.NODE_ENV
+  });
+});
+
+// Route pour vérifier la configuration CORS
+app.get('/api/cors-config', (req, res) => {
+  res.json({
+    nodeEnv: process.env.NODE_ENV,
+    frontendUrl: process.env.FRONTEND_URL,
+    corsOrigin: corsOptions.origin,
+    requestOrigin: req.headers.origin,
+    allowedOrigins: corsOptions.origin
   });
 });
 
