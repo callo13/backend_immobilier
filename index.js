@@ -138,7 +138,7 @@ app.get('/auth/google/callback', async (req, res) => {
       ? process.env.FRONTEND_URL || 'https://votre-frontend.onrender.com'
       : 'http://localhost:5173';
     
-    res.redirect(`${frontendUrl}/oauth-success`);
+    res.redirect(`${frontendUrl}`);
     console.log('[CALLBACK] Authentification réussie, cookie envoyé, redirection vers le front. Réponse : 302 Redirect');
   } catch (err) {
     console.log('[CALLBACK] Erreur détaillée lors de la récupération du token:', {
@@ -413,4 +413,5 @@ app.get('/api/test-cookies', (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`Frontend URL: ${process.env.FRONTEND_URL}`);
 }); 
